@@ -1,0 +1,375 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * ORGANIZER DESIGN SYSTEM
+ * ========================
+ * Premium, futuristic, dark-first.
+ * Restrained palette with deliberate accent color usage.
+ * Category colors serve as semantic identifiers.
+ */
+
+:root {
+  /* Core palette */
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.13 0 0);
+  --card: oklch(0.995 0 0);
+  --card-foreground: oklch(0.13 0 0);
+  --popover: oklch(0.995 0 0);
+  --popover-foreground: oklch(0.13 0 0);
+  --primary: oklch(0.15 0 0);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.15 0 0);
+  --muted: oklch(0.955 0 0);
+  --muted-foreground: oklch(0.5 0 0);
+  --accent: oklch(0.955 0 0);
+  --accent-foreground: oklch(0.15 0 0);
+  --destructive: oklch(0.58 0.22 25);
+  --border: oklch(0.91 0 0);
+  --input: oklch(0.91 0 0);
+  --ring: oklch(0.65 0 0);
+  --radius: 0.5rem;
+
+  /* Chart colors */
+  --chart-1: oklch(0.6 0.15 250);
+  --chart-2: oklch(0.65 0.16 160);
+  --chart-3: oklch(0.7 0.14 60);
+  --chart-4: oklch(0.55 0.18 300);
+  --chart-5: oklch(0.6 0.14 20);
+
+  /* Sidebar */
+  --sidebar: oklch(0.975 0 0);
+  --sidebar-foreground: oklch(0.13 0 0);
+  --sidebar-primary: oklch(0.15 0 0);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.95 0 0);
+  --sidebar-accent-foreground: oklch(0.15 0 0);
+  --sidebar-border: oklch(0.91 0 0);
+  --sidebar-ring: oklch(0.65 0 0);
+
+  /* === CATEGORY COLORS === */
+  --cat-college: oklch(0.6 0.15 250);
+  --cat-dsa: oklch(0.65 0.17 160);
+  --cat-ml: oklch(0.6 0.17 300);
+  --cat-projects: oklch(0.65 0.16 40);
+  --cat-fitness: oklch(0.62 0.18 145);
+  --cat-personal: oklch(0.6 0.12 70);
+  --cat-teaching: oklch(0.6 0.14 20);
+  --cat-other: oklch(0.55 0 0);
+
+  /* === PRIORITY COLORS === */
+  --priority-low: oklch(0.6 0 0);
+  --priority-normal: oklch(0.6 0.12 250);
+  --priority-high: oklch(0.65 0.18 50);
+  --priority-critical: oklch(0.58 0.22 25);
+
+  /* === XP / GAMIFICATION === */
+  --xp-color: oklch(0.7 0.17 85);
+  --streak-color: oklch(0.65 0.2 30);
+  --level-color: oklch(0.6 0.15 250);
+
+  /* === SURFACE ELEVATION === */
+  --surface-1: oklch(0.98 0 0);
+  --surface-2: oklch(0.96 0 0);
+  --surface-3: oklch(0.93 0 0);
+}
+
+.dark {
+  /* Core palette */
+  --background: oklch(0.1 0 0);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.14 0 0);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.14 0 0);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.93 0 0);
+  --primary-foreground: oklch(0.1 0 0);
+  --secondary: oklch(0.2 0 0);
+  --secondary-foreground: oklch(0.93 0 0);
+  --muted: oklch(0.18 0 0);
+  --muted-foreground: oklch(0.6 0 0);
+  --accent: oklch(0.2 0 0);
+  --accent-foreground: oklch(0.93 0 0);
+  --destructive: oklch(0.65 0.2 22);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.5 0 0);
+
+  /* Chart colors */
+  --chart-1: oklch(0.65 0.15 250);
+  --chart-2: oklch(0.7 0.16 160);
+  --chart-3: oklch(0.75 0.14 60);
+  --chart-4: oklch(0.6 0.18 300);
+  --chart-5: oklch(0.65 0.14 20);
+
+  /* Sidebar */
+  --sidebar: oklch(0.12 0 0);
+  --sidebar-foreground: oklch(0.95 0 0);
+  --sidebar-primary: oklch(0.93 0 0);
+  --sidebar-primary-foreground: oklch(0.1 0 0);
+  --sidebar-accent: oklch(0.18 0 0);
+  --sidebar-accent-foreground: oklch(0.93 0 0);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.5 0 0);
+
+  /* === CATEGORY COLORS — brighter in dark mode === */
+  --cat-college: oklch(0.7 0.14 250);
+  --cat-dsa: oklch(0.75 0.16 160);
+  --cat-ml: oklch(0.7 0.16 300);
+  --cat-projects: oklch(0.75 0.15 40);
+  --cat-fitness: oklch(0.72 0.17 145);
+  --cat-personal: oklch(0.7 0.11 70);
+  --cat-teaching: oklch(0.7 0.13 20);
+  --cat-other: oklch(0.6 0 0);
+
+  /* === PRIORITY COLORS === */
+  --priority-low: oklch(0.6 0 0);
+  --priority-normal: oklch(0.7 0.11 250);
+  --priority-high: oklch(0.75 0.17 50);
+  --priority-critical: oklch(0.65 0.2 22);
+
+  /* === XP / GAMIFICATION === */
+  --xp-color: oklch(0.78 0.16 85);
+  --streak-color: oklch(0.72 0.19 30);
+  --level-color: oklch(0.7 0.14 250);
+
+  /* === SURFACE ELEVATION === */
+  --surface-1: oklch(0.12 0 0);
+  --surface-2: oklch(0.15 0 0);
+  --surface-3: oklch(0.19 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  html {
+    @apply font-sans scroll-smooth;
+  }
+
+  /* Typography scale */
+  h1 {
+    @apply text-2xl font-bold tracking-tight sm:text-3xl;
+  }
+  h2 {
+    @apply text-xl font-semibold tracking-tight sm:text-2xl;
+  }
+  h3 {
+    @apply text-lg font-semibold;
+  }
+}
+
+@layer utilities {
+  /* === ELEVATION SYSTEM === */
+  /* Subtle elevation for interactive elements */
+  .elevation-sm {
+    box-shadow:
+      0 1px 2px oklch(0 0 0 / 2%),
+      0 2px 4px oklch(0 0 0 / 1%);
+  }
+
+  /* Standard card elevation */
+  .elevation-md {
+    box-shadow:
+      0 2px 4px oklch(0 0 0 / 3%),
+      0 4px 8px oklch(0 0 0 / 2%);
+  }
+
+  /* Premium elevated surface (hover states, modals) */
+  .elevation-lg {
+    box-shadow:
+      0 4px 6px oklch(0 0 0 / 4%),
+      0 8px 16px oklch(0 0 0 / 3%),
+      0 16px 24px oklch(0 0 0 / 2%);
+  }
+
+  /* Hero/modal elevation */
+  .elevation-xl {
+    box-shadow:
+      0 6px 12px oklch(0 0 0 / 5%),
+      0 12px 24px oklch(0 0 0 / 4%),
+      0 24px 48px oklch(0 0 0 / 3%);
+  }
+
+  /* === GLOWS === */
+  /* XP glow on cards/badges */
+  .xp-glow {
+    box-shadow: 0 0 16px -4px var(--xp-color);
+  }
+
+  .xp-glow-sm {
+    box-shadow: 0 0 8px -2px var(--xp-color);
+  }
+
+  .streak-glow {
+    box-shadow: 0 0 16px -4px var(--streak-color);
+  }
+
+  .streak-glow-sm {
+    box-shadow: 0 0 8px -2px var(--streak-color);
+  }
+
+  /* === SURFACES === */
+  /* Subtle surface texture for cards */
+  .surface-elevated {
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-shadow:
+      0 1px 2px oklch(0 0 0 / 3%),
+      0 4px 12px oklch(0 0 0 / 2%);
+  }
+
+  /* Premium subtle gradient for hero sections */
+  .surface-hero {
+    background: linear-gradient(
+      135deg,
+      var(--surface-1) 0%,
+      var(--surface-2) 100%
+    );
+  }
+
+  /* Interactive hover surface */
+  .surface-interactive {
+    @apply transition-all duration-200;
+  }
+
+  .surface-interactive:hover {
+    background: var(--surface-2);
+    box-shadow:
+      0 2px 4px oklch(0 0 0 / 3%),
+      0 4px 8px oklch(0 0 0 / 2%);
+  }
+
+  /* === FOCUS STATES === */
+  /* Focus ring for interactive elements */
+  .ring-focus {
+    @apply focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Premium focus ring (more subtle) */
+  .ring-focus-subtle {
+    @apply focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background;
+  }
+
+  /* === TEXT EFFECTS === */
+  /* Animated gradient text */
+  .text-gradient {
+    background: linear-gradient(
+      135deg,
+      var(--xp-color) 0%,
+      var(--level-color) 100%
+    );
+    @apply bg-clip-text text-transparent;
+  }
+
+  /* Premium heading style */
+  .heading-premium {
+    @apply font-bold tracking-tight;
+    letter-spacing: -0.01em;
+  }
+
+  /* === TRANSITION PRESETS === */
+  .transition-smooth {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .transition-bouncy {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  /* === ANIMATION UTILITIES === */
+  /* Pulse effect for attention */
+  .animate-pulse-soft {
+    animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.85; }
+  }
+
+  /* Scale pop for badges/notifications */
+  .animate-scale-pop {
+    animation: scale-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes scale-pop {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* === RESPONSIVE HELPERS === */
+  /* Mobile-first spacing */
+  .px-fluid {
+    @apply px-4 sm:px-6 md:px-8;
+  }
+
+  .py-fluid {
+    @apply py-4 sm:py-6 md:py-8;
+  }
+}
+
+
+/* Reduced motion: disable CSS transitions and animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
