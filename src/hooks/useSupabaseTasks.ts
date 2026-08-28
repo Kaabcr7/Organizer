@@ -8,9 +8,13 @@ import { useAuth } from "@/lib/auth";
 import { useRepositories } from "./useRepositories";
 import { useApp } from "@/lib/store";
 import { getTodayDate } from "@/lib/domain/daily-state";
-import { formatSupabaseError } from "@/lib/supabase";
 import type { NewTaskInput } from "@/lib/store/types";
-import type { TaskCategory } from "@/types/task";
+import type { Task, TaskCategory } from "@/types/task";
+
+function formatError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return "An unexpected error occurred";
+}
 
 export interface TaskOperationResult {
   success: boolean;
@@ -25,10 +29,10 @@ export function useSupabaseTasks() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Create a new task in Supabase
-   */
-  const createTask = useCallback(
+/**
+ * Create a new task in Supabase
+ */
+const createTask = useCallback(
     async (input: NewTaskInput): Promise<TaskOperationResult> => {
       if (!user) return { success: false, error: "Not authenticated" };
 
@@ -59,15 +63,37 @@ export function useSupabaseTasks() {
           template_id: input.isRecurring ? undefined : null,
         });
 
-        // Add to local state (optimistic update)
+        // Add to local state (optimistic update) - Task requires all fields
+        const xpReward =
+          input.difficulty === "easy"
+            ? 10
+            : input.difficulty === "medium"
+            ? 25
+            : input.difficulty === "hard"
+            ? 50
+            : 100;
+        const optimisticTask: Task = {
+          id: task.id || `temp-${Date.now()}`,
+          title: input.title,
+          description: input.description,
+          category: input.category as TaskCategory,
+          priority: input.priority,
+          difficulty: input.difficulty,
+          xpReward,
+          estimatedMinutes: input.estimatedMinutes,
+          dueTime: input.dueTime,
+          completed: false,
+          isRecurring: input.isRecurring,
+          date: today,
+        };
         dispatch({
           type: "ADD_TASK",
-          task: input,
+          task: optimisticTask,
         });
 
         return { success: true, data: task };
       } catch (err) {
-        const message = formatSupabaseError(err);
+        const message = formatError(err);
         setError(message);
         return { success: false, error: message };
       } finally {
@@ -112,7 +138,7 @@ export function useSupabaseTasks() {
 
         return { success: true, data: task };
       } catch (err) {
-        const message = formatSupabaseError(err);
+        const message = formatError(err);
         setError(message);
         return { success: false, error: message };
       } finally {
@@ -143,7 +169,7 @@ export function useSupabaseTasks() {
 
         return { success: true };
       } catch (err) {
-        const message = formatSupabaseError(err);
+        const message = formatError(err);
         setError(message);
         return { success: false, error: message };
       } finally {
@@ -178,7 +204,7 @@ export function useSupabaseTasks() {
 
         return { success: true, data: result };
       } catch (err) {
-        const message = formatSupabaseError(err);
+        const message = formatError(err);
         setError(message);
         return { success: false, error: message };
       } finally {
@@ -210,7 +236,7 @@ export function useSupabaseTasks() {
 
         return { success: true, data: result };
       } catch (err) {
-        const message = formatSupabaseError(err);
+        const message = formatError(err);
         setError(message);
         return { success: false, error: message };
       } finally {

@@ -1,28 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
-import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { useAuth } from "@/lib/auth";
 
 /**
- * Provider component that syncs app state with Supabase on mount
- * Wraps the app to ensure data is loaded before rendering
+ * Auth-aware provider that shows loading state while auth resolves.
+ * Data sync is handled by the AppProvider via API hooks.
  */
 export function SupabaseSyncProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { isLoading: authLoading, user } = useAuth();
+  const { isLoading: authLoading } = useAuth();
 
-  // Only initialize sync on the client after auth is ready
-  useEffect(() => {
-    if (!authLoading && user) {
-      // Sync is auto-triggered by useSupabaseSync hook if enabled
-    }
-  }, [authLoading, user]);
-
-  // Show nothing while auth is loading to avoid hydration mismatches
+  // Show loading while auth is resolving to avoid hydration mismatches
   if (authLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-900">
@@ -38,14 +29,12 @@ export function SupabaseSyncProvider({
 }
 
 /**
- * Separate component that handles the actual sync
- * This is only rendered after auth is ready
+ * No-op initializer - data sync is now handled by AppProvider via API hooks.
  */
 export function SupabaseSyncInitializer({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  useSupabaseSync({ enabled: true, autoSync: true });
   return children;
 }

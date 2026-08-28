@@ -57,7 +57,8 @@ export interface NewTaskInput {
 export type AppAction =
   | { type: "COMPLETE_TASK"; taskId: string }
   | { type: "UNCOMPLETE_TASK"; taskId: string }
-  | { type: "ADD_TASK"; task: NewTaskInput }
+  | { type: "ADD_TASK"; task: Task }
+  | { type: "REPLACE_TASK"; oldId: string; newTask: Task }
   | { type: "EDIT_TASK"; taskId: string; updates: Partial<Task> }
   | { type: "DELETE_TASK"; taskId: string }
   | { type: "DISMISS_XP_ANIMATION"; animationId: string }

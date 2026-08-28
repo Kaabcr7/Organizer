@@ -7,6 +7,18 @@ export interface UserStats {
   longestStreak: number;
   tasksCompletedToday: number;
   tasksCompletedTotal: number;
+  // Profile fields from API
+  id?: string;
+  display_name?: string;
+  avatar_url?: string | null;
+  timezone?: string;
+  teaching_days?: string;
+  college_start?: string;
+  college_end?: string;
+  teaching_start?: string;
+  teaching_end?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Achievement {

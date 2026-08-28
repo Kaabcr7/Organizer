@@ -1,39 +1,26 @@
 import type { AppState } from "./types";
-import { getMockTasks } from "@/lib/data/mock-tasks";
-import { getMockStats } from "@/lib/data/mock-stats";
-import { getMockAchievements } from "@/lib/data/mock-stats";
-import { getMockSchedule } from "@/lib/data/mock-schedule";
 import { getTodayDate } from "@/lib/domain/daily-state";
-import { getCompletionPercentage, getEarnedXp } from "@/lib/domain/tasks";
 
 export function createInitialState(): AppState {
   const today = getTodayDate();
-  const tasks = getMockTasks();
-  const stats = getMockStats();
-  const achievements = getMockAchievements();
-  const schedule = getMockSchedule();
-
-  // Identify recurring templates from mock tasks
-  const recurringTemplates = tasks.filter((t) => t.isRecurring);
 
   return {
     today,
-    tasks,
-    schedule,
+    tasks: [],
+    schedule: { date: today, isTeachingDay: false, blocks: [] },
     stats: {
-      ...stats,
-      tasksCompletedToday: tasks.filter((t) => t.completed).length,
+      totalXp: 0,
+      level: 1,
+      xpForCurrentLevel: 0,
+      xpForNextLevel: 100,
+      currentStreak: 0,
+      longestStreak: 0,
+      tasksCompletedToday: 0,
+      tasksCompletedTotal: 0,
     },
-    achievements,
-    history: {
-      [today]: {
-        date: today,
-        tasks,
-        totalXpEarned: getEarnedXp(tasks),
-        completionPercentage: getCompletionPercentage(tasks),
-      },
-    },
-    recurringTemplates,
+    achievements: [],
+    history: {},
+    recurringTemplates: [],
     xpAnimations: [],
     levelUpEvent: null,
   };

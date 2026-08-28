@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { appReducer } from "./reducer";
 import type { AppState } from "./types";
 import type { Task } from "@/types/task";
+import { getTodayDate } from "@/lib/domain/daily-state";
 
 function createMockState(overrides: Partial<AppState> = {}): AppState {
   const tasks: Task[] = [
@@ -134,21 +135,26 @@ describe("appReducer - UNCOMPLETE_TASK", () => {
 });
 
 describe("appReducer - ADD_TASK", () => {
-  it("adds a new task to the list", () => {
+  it("adds a new task to the list (task already has ID from optimistic update)", () => {
     const state = createMockState();
     const newState = appReducer(state, {
       type: "ADD_TASK",
       task: {
+        id: "temp-123",
         title: "New Task",
         category: "dsa",
         priority: "high",
         difficulty: "hard",
+        xpReward: 50,
+        completed: false,
         isRecurring: false,
+        date: "2026-08-24",
       },
     });
 
     expect(newState.tasks).toHaveLength(3);
     const added = newState.tasks[2];
+    expect(added.id).toBe("temp-123");
     expect(added.title).toBe("New Task");
     expect(added.category).toBe("dsa");
     expect(added.completed).toBe(false);
@@ -160,11 +166,15 @@ describe("appReducer - ADD_TASK", () => {
     const newState = appReducer(state, {
       type: "ADD_TASK",
       task: {
+        id: "temp-456",
         title: "Daily DSA",
         category: "dsa",
         priority: "high",
         difficulty: "medium",
+        xpReward: 25,
+        completed: false,
         isRecurring: true,
+        date: "2026-08-24",
       },
     });
 
@@ -193,7 +203,7 @@ describe("appReducer - DISMISS_LEVEL_UP", () => {
 });
 
 describe("appReducer - ROLLOVER_DAY", () => {
-  it("preserves current day in history and generates recurring tasks", () => {
+  it("preserves current day in history and clears tasks (recurring tasks fetched from API)", () => {
     const state = createMockState({
       today: "2026-08-23", // yesterday
       recurringTemplates: [
@@ -217,13 +227,12 @@ describe("appReducer - ROLLOVER_DAY", () => {
     expect(newState.history["2026-08-23"]).toBeDefined();
     expect(newState.history["2026-08-23"].tasks).toHaveLength(2); // original tasks
 
-    // New day should only have recurring tasks
-    expect(newState.tasks).toHaveLength(1);
-    expect(newState.tasks[0].title).toBe("Daily DSA");
-    expect(newState.tasks[0].completed).toBe(false);
+    // New day should have empty tasks (recurring tasks fetched from API)
+    expect(newState.tasks).toHaveLength(0);
 
     // Stats updated
     expect(newState.stats.tasksCompletedToday).toBe(0);
+    expect(newState.today).toBe(getTodayDate()); // updated to today
   });
 });
 
@@ -292,7 +301,7 @@ describe("appReducer - EDIT_TASK", () => {
 });
 
 describe("appReducer - CARRY_FORWARD_TASK", () => {
-  it("carries an incomplete task from history to today", () => {
+  it("returns state unchanged (carry-forward handled by API)", () => {
     const state = createMockState({
       history: {
         "2026-08-23": {
@@ -334,12 +343,9 @@ describe("appReducer - CARRY_FORWARD_TASK", () => {
       fromDate: "2026-08-23",
     });
 
-    // Should add a new task to today
-    expect(newState.tasks).toHaveLength(3); // 2 original + 1 carried
-    const carried = newState.tasks.find((t) => t.title === "Unfinished Work");
-    expect(carried).toBeDefined();
-    expect(carried!.completed).toBe(false);
-    expect(carried!.date).toBe(state.today);
+    // Should NOT add anything - carry-forward is done via API
+    expect(newState.tasks).toHaveLength(2); // unchanged
+    expect(newState).toBe(state);
   });
 
   it("does not carry forward a completed task", () => {
@@ -375,6 +381,7 @@ describe("appReducer - CARRY_FORWARD_TASK", () => {
 
     // Should NOT add anything
     expect(newState.tasks).toHaveLength(2); // unchanged
+    expect(newState).toBe(state);
   });
 
   it("does not carry from non-existent history date", () => {

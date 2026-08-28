@@ -3,16 +3,21 @@
 import {
   createContext,
   useContext,
-  useEffect,
-  useState,
+  useCallback,
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { getClient } from "@/lib/supabase";
-import type { User } from "@supabase/supabase-js";
+import { authClient } from "./client";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  image?: string | null;
+}
 
 export interface AuthContextValue {
-  user: User | null;
+  user: AuthUser | null;
   isLoading: boolean;
   error: string | null;
   signUp: (email: string, password: string) => Promise<void>;
@@ -24,129 +29,71 @@ export interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  // Initialize auth state on mount
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        const client = getClient();
-        const { data } = await client.auth.getSession();
-        setUser(data.session?.user ?? null);
-      } catch (err) {
-        console.error("Auth init error:", err);
-      } finally {
-        setIsLoading(false);
+  // Use Better Auth's reactive session hook
+  const { data: session, isPending } = authClient.useSession();
+
+  const user: AuthUser | null = session?.user
+    ? {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+        image: session.user.image,
       }
-    };
+    : null;
 
-    initAuth();
-  }, []);
-
-  // Listen for auth changes
-  useEffect(() => {
-    const client = getClient();
-    const {
-      data: { subscription },
-    } = client.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-
-      // Redirect on sign out
-      if (event === "SIGNED_OUT") {
-        router.push("/auth/login");
-      }
-    });
-
-    return () => subscription?.unsubscribe();
-  }, [router]);
-
-  const signUp = async (email: string, password: string) => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const client = getClient();
-      const { error: err } = await client.auth.signUp({
+  const signUp = useCallback(
+    async (email: string, password: string) => {
+      const { error } = await authClient.signUp.email({
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        name: email.split("@")[0], // Default name from email
       });
 
-      if (err) {
-        setError(err.message);
-        throw err;
+      if (error) {
+        throw new Error(error.message || "Sign up failed");
       }
 
-      // On successful signup, redirect to login (user needs to verify email)
-      router.push("/auth/login");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Signup failed";
-      setError(message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      // requireEmailVerification is false, so signUp already establishes
+      // an authenticated session — send the user straight into the app.
+      router.push("/");
+    },
+    [router]
+  );
 
-  const signIn = async (email: string, password: string) => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const client = getClient();
-      const { error: err } = await client.auth.signInWithPassword({
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      const { error } = await authClient.signIn.email({
         email,
         password,
       });
 
-      if (err) {
-        setError(err.message);
-        throw err;
+      if (error) {
+        throw new Error(error.message || "Sign in failed");
       }
 
       router.push("/");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Sign in failed";
-      setError(message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [router]
+  );
 
-  const signOut = async () => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const client = getClient();
-      const { error: err } = await client.auth.signOut();
-
-      if (err) {
-        setError(err.message);
-        throw err;
-      }
-
-      setUser(null);
-      router.push("/auth/login");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Sign out failed";
-      setError(message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const signOut = useCallback(async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/auth/login");
+        },
+      },
+    });
+  }, [router]);
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        isLoading,
-        error,
+        isLoading: isPending,
+        error: null,
         signUp,
         signIn,
         signOut,

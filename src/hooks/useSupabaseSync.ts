@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/auth";
 import { useRepositories } from "./useRepositories";
 import { useApp } from "@/lib/store";
 import { getTodayDate } from "@/lib/domain/daily-state";
-import { formatSupabaseError } from "@/lib/supabase";
 import type { Task, TaskCategory, TaskPriority, TaskDifficulty } from "@/types/task";
 
 export interface UseSupabaseSyncOptions {
@@ -58,7 +57,7 @@ export function useSupabaseSync(options: UseSupabaseSyncOptions = {}) {
         },
       });
     } catch (err) {
-      console.error("Failed to load tasks:", formatSupabaseError(err));
+      console.error("Failed to load tasks:", err instanceof Error ? err.message : String(err));
     }
   }, [user, enabled, repos.tasks, state, dispatch]);
 
@@ -88,7 +87,7 @@ export function useSupabaseSync(options: UseSupabaseSyncOptions = {}) {
         },
       });
     } catch (err) {
-      console.error("Failed to load profile:", formatSupabaseError(err));
+      console.error("Failed to load profile:", err instanceof Error ? err.message : String(err));
     }
   }, [user, enabled, repos.profiles, state, dispatch]);
 
@@ -120,7 +119,7 @@ export function useSupabaseSync(options: UseSupabaseSyncOptions = {}) {
         },
       });
     } catch (err) {
-      console.error("Failed to load achievements:", formatSupabaseError(err));
+      console.error("Failed to load achievements:", err instanceof Error ? err.message : String(err));
     }
   }, [user, enabled, repos.achievements, state, dispatch]);
 
@@ -160,7 +159,7 @@ export function useSupabaseSync(options: UseSupabaseSyncOptions = {}) {
     } catch (err) {
       console.error(
         "Failed to load recurring templates:",
-        formatSupabaseError(err)
+        err instanceof Error ? err.message : String(err)
       );
     }
   }, [user, enabled, repos.recurringTemplates, state, dispatch]);

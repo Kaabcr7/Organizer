@@ -3,5 +3,5 @@
  */
 
 export * from "./repositories";
-export * from "./supabase-repositories";
+export * from "./drizzle-repositories";
 export { getRepositoryFactory, resetRepositoryFactory, createRepositoryFactory } from "./factory";

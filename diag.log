@@ -1,0 +1,32 @@
+﻿node.exe : [WebServer] $ next build
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([WebServer] $ next build:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[WebServer] ΓÜá The "middleware" file convention is deprecated. Please use "proxy" instead.
+[WebServer] 
+[WebServer]   To migrate automatically, run:
+[WebServer]   npx @next/codemod@canary middleware-to-proxy .
+[WebServer] 
+[WebServer]   Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+[WebServer] $ next start
+
+Running 1 test using 1 worker
+
+CONSOLE: error Failed to load initial data: ApiError: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+    at Object.getTodaysTasks (http://localhost:3000/_next/static/chunks/0pgo9xkl4nqj8.js:1:20797)
+    at async e (http://localhost:3000/_next/static/chunks/0pgo9xkl4nqj8.js:1:23495)
+CONSOLE: error Failed to load initial data: ApiError: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+    at Object.getTodaysTasks (http://localhost:3000/_next/static/chunks/0pgo9xkl4nqj8.js:1:20797)
+    at async e (http://localhost:3000/_next/static/chunks/0pgo9xkl4nqj8.js:1:23495)
+CONSOLE: error Failed to load initial data: ApiError: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+    at Object.getTodaysTasks (http://localhost:3000/_next/static/chunks/0pgo9xkl4nqj8.js:1:20797)
+    at async e (http://localhost:3000/_next/static/chunks/0pgo9xkl4nqj8.js:1:23495)
+CONSOLE: log [DEBUG] calling signUp with live-test-1787862456248@example.com
+REQUEST SENT: POST http://localhost:3000/api/auth/sign-up/email
+FINAL URL AFTER 5s: http://localhost:3000/auth/signup
+  Γ£ô  1 [chromium] ΓÇ║ e2e\live-auth-flow.spec.ts:6:5 ΓÇ║ DIAGNOSTIC: sign up and observe final state (6.0s)
+
+  1 passed (39.0s)

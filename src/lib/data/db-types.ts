@@ -1,8 +1,7 @@
 /**
- * Auto-generated TypeScript types for Supabase schema
- * Generated from the database schema defined in Phase 3A
- * 
- * Run: npx supabase gen types typescript --local > src/lib/supabase/types.generated.ts
+ * Database TypeScript types
+ * Originally generated from Supabase schema, now maintained manually.
+ * These types define the Row/Insert/Update shapes used by repository interfaces.
  */
 
 /* eslint-disable @typescript-eslint/no-empty-object-type */
@@ -133,15 +132,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "recurring_templates_user_id_fk";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          }
-        ];
+        Relationships: [];
       };
       task_instances: {
         Row: {
@@ -204,29 +195,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "task_instances_user_id_fk";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "task_instances_template_id_fk";
-            columns: ["template_id"];
-            isOneToOne: false;
-            referencedRelation: "recurring_templates";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "task_instances_carried_from_fk";
-            columns: ["carried_from_task_instance_id"];
-            isOneToOne: false;
-            referencedRelation: "task_instances";
-            referencedColumns: ["id"];
-          }
-        ];
+        Relationships: [];
       };
       xp_events: {
         Row: {
@@ -256,66 +225,7 @@ export type Database = {
           idempotency_key?: string | null;
           created_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "xp_events_user_id_fk";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "xp_events_task_instance_id_fk";
-            columns: ["task_instance_id"];
-            isOneToOne: false;
-            referencedRelation: "task_instances";
-            referencedColumns: ["id"];
-          }
-        ];
-      };
-      daily_summaries: {
-        Row: {
-          id: string;
-          user_id: string;
-          date: string;
-          total_tasks: number;
-          completed_tasks: number;
-          completion_percentage: number;
-          xp_earned: number;
-          streak_day: number;
-          created_at?: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          date: string;
-          total_tasks?: number;
-          completed_tasks?: number;
-          completion_percentage?: number;
-          xp_earned?: number;
-          streak_day?: number;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          date?: string;
-          total_tasks?: number;
-          completed_tasks?: number;
-          completion_percentage?: number;
-          xp_earned?: number;
-          streak_day?: number;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "daily_summaries_user_id_fk";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          }
-        ];
+        Relationships: [];
       };
       schedule_blocks: {
         Row: {
@@ -357,15 +267,43 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "schedule_blocks_user_id_fk";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          }
-        ];
+        Relationships: [];
+      };
+      daily_summaries: {
+        Row: {
+          id: string;
+          user_id: string;
+          date: string;
+          total_tasks: number;
+          completed_tasks: number;
+          completion_percentage: number;
+          xp_earned: number;
+          streak_day: number;
+          created_at?: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          date: string;
+          total_tasks?: number;
+          completed_tasks?: number;
+          completion_percentage?: number;
+          xp_earned?: number;
+          streak_day?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          date?: string;
+          total_tasks?: number;
+          completed_tasks?: number;
+          completion_percentage?: number;
+          xp_earned?: number;
+          streak_day?: number;
+          created_at?: string;
+        };
+        Relationships: [];
       };
       achievements: {
         Row: {
@@ -413,68 +351,11 @@ export type Database = {
           achievement_id?: string;
           unlocked_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "user_achievements_user_id_fk";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "user_achievements_achievement_id_fk";
-            columns: ["achievement_id"];
-            isOneToOne: false;
-            referencedRelation: "achievements";
-            referencedColumns: ["id"];
-          }
-        ];
+        Relationships: [];
       };
     };
     Views: {};
-    Functions: {
-      complete_task: {
-        Args: {
-          p_task_instance_id: string;
-          p_idempotency_key?: string;
-        };
-        Returns: Json;
-      };
-      undo_complete_task: {
-        Args: {
-          p_task_instance_id: string;
-        };
-        Returns: Json;
-      };
-      calculate_level: {
-        Args: {
-          p_xp: number;
-        };
-        Returns: number;
-      };
-      evaluate_achievements: {
-        Args: {
-          p_user_id: string;
-          p_xp: number;
-          p_level: number;
-        };
-        Returns: string[];
-      };
-      refresh_daily_summary: {
-        Args: {
-          p_user_id: string;
-          p_date: string;
-        };
-        Returns: undefined;
-      };
-      generate_daily_tasks: {
-        Args: {
-          p_user_id: string;
-          p_date: string;
-        };
-        Returns: number;
-      };
-    };
+    Functions: {};
     Enums: {};
     CompositeTypes: {};
   };

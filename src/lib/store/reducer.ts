@@ -2,7 +2,7 @@ import type { AppState, AppAction } from "./types";
 import { LEVEL_XP_TABLE } from "@/lib/constants";
 import { getLevelFromXp } from "@/lib/domain/xp";
 import { getCompletionPercentage, getEarnedXp } from "@/lib/domain/tasks";
-import { getTodayDate, generateRecurringTasks } from "@/lib/domain/daily-state";
+import { getTodayDate } from "@/lib/domain/daily-state";
 import type { Task } from "@/types/task";
 
 function calculateXpReward(difficulty: string): number {
@@ -13,10 +13,6 @@ function calculateXpReward(difficulty: string): number {
     case "epic": return 100;
     default: return 25;
   }
-}
-
-function generateId(): string {
-  return `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function recalcStats(state: AppState): AppState {
@@ -135,29 +131,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
 
     case "ADD_TASK": {
-      const xpReward = action.task.isRecurring
-        ? calculateXpReward(action.task.difficulty)
-        : calculateXpReward(action.task.difficulty);
-
-      const newTask: Task = {
-        id: generateId(),
-        title: action.task.title,
-        description: action.task.description,
-        category: action.task.category,
-        priority: action.task.priority,
-        difficulty: action.task.difficulty,
-        xpReward,
-        estimatedMinutes: action.task.estimatedMinutes,
-        dueTime: action.task.dueTime,
-        completed: false,
-        isRecurring: action.task.isRecurring,
-        date: state.today,
-      };
+      // Task already has an ID (temp ID from optimistic update)
+      const newTask: Task = action.task;
 
       const newTasks = [...state.tasks, newTask];
 
       // Also add to recurring templates if recurring
-      const newTemplates = action.task.isRecurring
+      const newTemplates = newTask.isRecurring
         ? [...state.recurringTemplates, newTask]
         : state.recurringTemplates;
 
@@ -165,6 +145,21 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         tasks: newTasks,
         recurringTemplates: newTemplates,
+      });
+    }
+
+    case "REPLACE_TASK": {
+      // Replace optimistic task (with temp ID) with real task from API (with UUID)
+      const updatedTasks = state.tasks.map((t) =>
+        t.id === action.oldId ? action.newTask : t
+      );
+      const updatedTemplates = state.recurringTemplates.map((t) =>
+        t.id === action.oldId ? action.newTask : t
+      );
+      return recalcStats({
+        ...state,
+        tasks: updatedTasks,
+        recurringTemplates: updatedTemplates,
       });
     }
 
@@ -194,6 +189,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
 
     case "CARRY_FORWARD_TASK": {
+      // This action should not be dispatched directly - carry forward is done via API
+      // which returns a task with a real UUID. This case is kept for backwards compatibility
+      // but should not generate client-side IDs.
       const historicalDay = state.history[action.fromDate];
       if (!historicalDay) return state;
 
@@ -202,18 +200,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       );
       if (!taskToCarry || taskToCarry.completed) return state;
 
-      const carriedTask: Task = {
-        ...taskToCarry,
-        id: `${taskToCarry.id}-carried-${state.today}`,
-        date: state.today,
-        completed: false,
-        completedAt: undefined,
-      };
-
-      return recalcStats({
-        ...state,
-        tasks: [...state.tasks, carriedTask],
-      });
+      // Return state unchanged - the API call will handle creating the task
+      // and the context will replace via REPLACE_TASK or HYDRATE
+      return state;
     }
 
     case "ROLLOVER_DAY": {
@@ -228,12 +217,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         completionPercentage: getCompletionPercentage(state.tasks),
       };
 
-      // Generate recurring tasks for new day
-      const recurringTasks = generateRecurringTasks(
-        state.recurringTemplates,
-        newDate
-      );
-
       // Update streak: if yesterday was completed (>=1 task), streak continues
       const yesterdayCompletion = getCompletionPercentage(state.tasks);
       const newStreak =
@@ -244,7 +227,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         today: newDate,
-        tasks: recurringTasks,
+        tasks: [], // Will be populated by API fetch (includes server-generated recurring tasks)
         history: {
           ...state.history,
           [state.today]: currentDayHistory,

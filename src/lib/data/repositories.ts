@@ -3,7 +3,7 @@
  * Implementations use Supabase but can be swapped out for testing
  */
 
-import type { Database } from "@/lib/supabase/types.generated";
+import type { Database } from "@/lib/data/db-types";
 
 // Type aliases for convenience
 type TaskInstance = Database["public"]["Tables"]["task_instances"]["Row"];
@@ -57,6 +57,9 @@ export interface ITaskRepository {
     sourceTaskId: string,
     newDate: string
   ): Promise<TaskInstance>;
+
+  // Generate recurring tasks for a date
+  generateDailyTasks(userId: string, date: string): Promise<number>;
 }
 
 /**

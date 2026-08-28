@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClientWithAuth } from "@/lib/supabase/server";
+import { getSessionCookie } from "better-auth/cookies";
 
 // Routes that don't require authentication
-const publicRoutes = ["/auth/login", "/auth/signup", "/auth/callback"];
+const publicRoutes = ["/auth/login", "/auth/signup", "/auth/callback", "/api/auth"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -12,13 +12,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check authentication for protected routes
-  const supabase = createServerClientWithAuth();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  // Exclude API routes from middleware redirect - they handle auth themselves
+  // and must return JSON 401/403, not HTML redirects
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
 
-  if (!session) {
+  // Check for session cookie (optimistic check - actual validation on API routes)
+  const sessionCookie = getSessionCookie(request);
+
+  if (!sessionCookie) {
     // Redirect unauthenticated users to login
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";

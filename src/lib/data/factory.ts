@@ -1,17 +1,17 @@
 /**
  * Repository factory - provides access to all repositories
- * Can be used in both browser and server contexts
+ * Uses Drizzle ORM repositories connected to Neon PostgreSQL
  */
 
 import type { IRepositoryFactory } from "./repositories";
 import {
-  SupabaseProfileRepository,
-  SupabaseTaskRepository,
-  SupabaseRecurringTemplateRepository,
-  SupabaseScheduleRepository,
-  SupabaseHistoryRepository,
-  SupabaseAchievementRepository,
-} from "./supabase-repositories";
+  DrizzleProfileRepository,
+  DrizzleTaskRepository,
+  DrizzleRecurringTemplateRepository,
+  DrizzleScheduleRepository,
+  DrizzleHistoryRepository,
+  DrizzleAchievementRepository,
+} from "./drizzle-repositories";
 
 let factory: IRepositoryFactory | null = null;
 
@@ -21,12 +21,12 @@ let factory: IRepositoryFactory | null = null;
 export function getRepositoryFactory(): IRepositoryFactory {
   if (!factory) {
     factory = {
-      profiles: new SupabaseProfileRepository(),
-      tasks: new SupabaseTaskRepository(),
-      recurringTemplates: new SupabaseRecurringTemplateRepository(),
-      schedule: new SupabaseScheduleRepository(),
-      history: new SupabaseHistoryRepository(),
-      achievements: new SupabaseAchievementRepository(),
+      profiles: new DrizzleProfileRepository(),
+      tasks: new DrizzleTaskRepository(),
+      recurringTemplates: new DrizzleRecurringTemplateRepository(),
+      schedule: new DrizzleScheduleRepository(),
+      history: new DrizzleHistoryRepository(),
+      achievements: new DrizzleAchievementRepository(),
     };
   }
   return factory;
@@ -44,11 +44,11 @@ export function resetRepositoryFactory(): void {
  */
 export function createRepositoryFactory(): IRepositoryFactory {
   return {
-    profiles: new SupabaseProfileRepository(),
-    tasks: new SupabaseTaskRepository(),
-    recurringTemplates: new SupabaseRecurringTemplateRepository(),
-    schedule: new SupabaseScheduleRepository(),
-    history: new SupabaseHistoryRepository(),
-    achievements: new SupabaseAchievementRepository(),
+    profiles: new DrizzleProfileRepository(),
+    tasks: new DrizzleTaskRepository(),
+    recurringTemplates: new DrizzleRecurringTemplateRepository(),
+    schedule: new DrizzleScheduleRepository(),
+    history: new DrizzleHistoryRepository(),
+    achievements: new DrizzleAchievementRepository(),
   };
 }
