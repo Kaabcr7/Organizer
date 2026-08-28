@@ -8,6 +8,7 @@ import {
   CheckSquare,
   BarChart3,
   Target,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +17,7 @@ const MOBILE_NAV_ITEMS = [
   { href: "/schedule", label: "Schedule", icon: Calendar },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/stats", label: "Stats", icon: BarChart3 },
-  { href: "/focus", label: "Focus", icon: Target },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function MobileNav() {
