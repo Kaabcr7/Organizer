@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
     const auth = await requireAuth();
 
     const profileRepo = new DrizzleProfileRepository();
-    const profile = await profileRepo.getProfile(auth.userId);
+    let profile = await profileRepo.getProfile(auth.userId);
 
     if (!profile) {
-      return apiError("Profile not found", 404);
+      profile = await profileRepo.createProfile(auth.userId);
     }
 
     return apiSuccess(profile);

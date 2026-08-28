@@ -125,7 +125,58 @@ export class DrizzleProfileRepository implements IProfileRepository {
       updated_at: p.updatedAt.toISOString(),
     };
   }
+
+  async createProfile(userId: string, displayName?: string): Promise<any> {
+    const db = getDb();
+
+    const created: ProfileDrizzle[] = await (db as any)
+      .insert(profiles)
+      .values({
+        id: userId,
+        displayName: displayName || null,
+        teachingDays: "[1,3,5]",
+        collegeStart: "09:00",
+        collegeEnd: "17:00",
+        teachingStart: "17:30",
+        teachingEnd: "21:30",
+      })
+      .onConflictDoNothing()
+      .returning();
+
+    // If onConflictDoNothing hit a race (another request created it first), fetch it
+    const p = created.length ? created[0] : (await this.getProfileRow(userId));
+    if (!p) throw new Error(`Failed to create profile: ${userId}`);
+
+    return {
+      id: p.id,
+      display_name: p.displayName,
+      avatar_url: p.avatarUrl,
+      timezone: p.timezone,
+      total_xp: p.totalXp,
+      level: p.level,
+      current_streak: p.currentStreak,
+      longest_streak: p.longestStreak,
+      tasks_completed_total: p.tasksCompletedTotal,
+      teaching_days: p.teachingDays,
+      college_start: p.collegeStart,
+      college_end: p.collegeEnd,
+      teaching_start: p.teachingStart,
+      teaching_end: p.teachingEnd,
+      created_at: p.createdAt.toISOString(),
+      updated_at: p.updatedAt.toISOString(),
+    };
+  }
+
+  private async getProfileRow(userId: string): Promise<ProfileDrizzle | null> {
+    const db = getDb();
+    const result: ProfileDrizzle[] = await (db as any).select().from(profiles).where(eq(profiles.id, userId));
+    return result.length ? result[0] : null;
+  }
 }
+
+/**
+ * Task Repository Implementation
+ */
 
 /**
  * Task Repository Implementation
