@@ -52,6 +52,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import { useApiProfile } from "@/hooks/useApiProfile";
 import { useApiSchedule } from "@/hooks/useApiSchedule";
+import { getTodayDate } from "@/lib/domain/daily-state";
 import { cn } from "@/lib/utils";
 
 const WEEKDAYS = [
@@ -90,20 +91,23 @@ export default function SettingsPage() {
   const [teachingStart, setTeachingStart] = useState("17:30");
   const [teachingEnd, setTeachingEnd] = useState("21:30");
 
-  // Initialize from profile data
+  // Initialize from profile data.
+  // The API client normalises the profile to camelCase and trims Postgres
+  // "HH:MM:SS" times down to the "HH:MM" values used by TIME_OPTIONS — the
+  // raw snake_case fields still carry seconds and would not match any option.
   const initializeFromProfile = useCallback(() => {
     if (profile) {
-      setDisplayName(profile.display_name || "");
+      setDisplayName(profile.displayName || "");
       try {
-        const days = JSON.parse(profile.teaching_days || "[1,3,5]");
+        const days = JSON.parse(profile.teachingDays || "[1,3,5]");
         setTeachingDays(days.map(String));
       } catch {
         setTeachingDays(["1", "3", "5"]);
       }
-      setCollegeStart(profile.college_start || "09:00");
-      setCollegeEnd(profile.college_end || "17:00");
-      setTeachingStart(profile.teaching_start || "17:30");
-      setTeachingEnd(profile.teaching_end || "21:30");
+      setCollegeStart(profile.collegeStart || "09:00");
+      setCollegeEnd(profile.collegeEnd || "17:00");
+      setTeachingStart(profile.teachingStart || "17:30");
+      setTeachingEnd(profile.teachingEnd || "21:30");
     }
   }, [profile]);
 
@@ -114,32 +118,6 @@ export default function SettingsPage() {
     }
   }, [schedule]);
 
-  // Load initial data
-  const loadData = useCallback(async () => {
-    await Promise.all([fetchProfile(), fetchSchedule()]);
-  }, [fetchProfile, fetchSchedule]);
-
-// Initialize on mount
-const [initialized, setInitialized] = useState(false);
-useEffect(() => {
-if (initialized) return;
-
-if (typeof window !== "undefined") {
-  setSystemPrefersDark(window.matchMedia("(prefers-color-scheme: dark)").matches);
-  const savedTheme = localStorage.getItem("theme") as "dark" | "light" | null;
-  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  const initialTheme = savedTheme || (prefersDark ? "dark" : "light");
-  setTheme(initialTheme);
-  document.documentElement.classList.toggle("dark", initialTheme === "dark");
-}
-
-if (!profileLoading && !scheduleLoading) {
-  initializeFromProfile();
-  initializeFromSchedule();
-  setInitialized(true);
-}
-}, [initialized, profileLoading, scheduleLoading, initializeFromProfile, initializeFromSchedule]);
-
   // Check notification permission
   const checkNotificationPermission = useCallback(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -147,8 +125,52 @@ if (!profileLoading && !scheduleLoading) {
     }
   }, []);
 
-  // Initialize theme from document
-  
+  // Initialize on mount
+  const [initialized, setInitialized] = useState(false);
+  useEffect(() => {
+    if (initialized) return;
+
+    if (typeof window !== "undefined") {
+      setSystemPrefersDark(
+        window.matchMedia("(prefers-color-scheme: dark)").matches
+      );
+      const savedTheme = localStorage.getItem("theme") as
+        | "dark"
+        | "light"
+        | null;
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)")
+        .matches;
+      const initialTheme = savedTheme || (prefersDark ? "dark" : "light");
+      setTheme(initialTheme);
+      document.documentElement.classList.toggle("dark", initialTheme === "dark");
+      checkNotificationPermission();
+    }
+
+    if (!profileLoading && !scheduleLoading) {
+      initializeFromProfile();
+      initializeFromSchedule();
+      setInitialized(true);
+    }
+  }, [
+    initialized,
+    profileLoading,
+    scheduleLoading,
+    initializeFromProfile,
+    initializeFromSchedule,
+    checkNotificationPermission,
+  ]);
+
+  // The schedule hook has no auto-fetch of its own, so the Schedule tab stays
+  // empty unless it is requested explicitly. The profile auto-fetches.
+  const [scheduleRequested, setScheduleRequested] = useState(false);
+  useEffect(() => {
+    if (scheduleRequested) return;
+    setScheduleRequested(true);
+    fetchSchedule().catch((error) => {
+      console.error("Failed to load schedule:", error);
+    });
+  }, [scheduleRequested, fetchSchedule]);
+
 
 const handleSaveProfile = async () => {
     setIsSaving(true);
@@ -201,8 +223,10 @@ const handleSaveSchedule = async () => {
 
   const handleExportData = async () => {
     try {
+      const today = getTodayDate();
+
       const [tasksRes, profileRes, historyRes, scheduleRes] = await Promise.all([
-        fetch("/api/tasks?date=" + new Date().toISOString().split("T")[0]),
+        fetch("/api/tasks?date=" + today),
         fetch("/api/profile"),
         fetch("/api/history?startDate=2020-01-01&endDate=2030-12-31"),
         fetch("/api/schedule"),
@@ -229,9 +253,14 @@ const handleSaveSchedule = async () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `organizer-backup-${new Date().toISOString().split("T")[0]}.json`;
+      a.download = `organizer-backup-${today}.json`;
+      // The anchor has to be in the document for the download to start in
+      // every browser, and the URL can only be revoked once it has.
+      a.style.display = "none";
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch (error) {
       console.error("Export failed:", error);
     }
@@ -540,14 +569,14 @@ const handleSaveSchedule = async () => {
                     <div>
                       <p className="font-medium">{block.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        {block.type} • {block.start_time} - {block.end_time}
-                        {block.recurrence_days && " • Recurring"}
+                        {block.type} • {block.startTime} - {block.endTime}
+                        {block.recurrenceDays && " • Recurring"}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Switch
-                      checked={block.is_active}
+                      checked={block.isActive}
                       onCheckedChange={(checked) =>
                         updateScheduleBlock(block.id, { isActive: checked })
                       }

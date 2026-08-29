@@ -10,364 +10,585 @@ import {
   useRef,
   type ReactNode,
 } from "react";
+
 import type { AppState, AppAction, NewTaskInput } from "./types";
 import type { Task } from "@/types/task";
+import type { ScheduleBlock } from "@/types/schedule";
 import { appReducer } from "./reducer";
 import { createInitialState } from "./initial-state";
-import { getTodayDate } from "@/lib/domain/daily-state";
+import { getTodayDate, getIsoWeekday } from "@/lib/domain/daily-state";
 import { getCompletionPercentage } from "@/lib/domain/tasks";
 import { getLevelProgress } from "@/lib/domain/xp";
+import { LEVEL_XP_TABLE } from "@/lib/constants";
+import { ApiError, parseWeekdays } from "@/lib/api/client";
+
 import { useApiTasks } from "@/hooks/useApiTasks";
 import { useApiProfile } from "@/hooks/useApiProfile";
 import { useApiHistory } from "@/hooks/useApiHistory";
 import { useApiAchievements } from "@/hooks/useApiAchievements";
-import { ApiError } from "@/lib/api/client";
+import { useApiSchedule } from "@/hooks/useApiSchedule";
 
 interface AppContextValue {
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
-  // Convenience actions - now call API
+
   completeTask: (taskId: string) => Promise<void>;
   uncompleteTask: (taskId: string) => Promise<void>;
   addTask: (task: NewTaskInput) => Promise<void>;
-  editTask: (taskId: string, updates: Partial<AppState["tasks"][0]>) => Promise<void>;
+  editTask: (
+    taskId: string,
+    updates: Partial<AppState["tasks"][0]>
+  ) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   carryForwardTask: (taskId: string) => Promise<void>;
+
   dismissXpAnimation: (id: string) => void;
   dismissLevelUp: () => void;
-  // Loading and error states
+
   isLoading: boolean;
   apiError: ApiError | null;
   clearApiError: () => void;
-  // Derived values
+
   completionPercentage: number;
   levelProgress: number;
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
+/**
+ * Derive the XP thresholds bracketing a level. At the top of the table the
+ * next-level threshold equals the current one, which `getLevelProgress`
+ * reports as 100%.
+ */
+function xpThresholdsForLevel(level: number): {
+  xpForCurrentLevel: number;
+  xpForNextLevel: number;
+} {
+  const lastThreshold = LEVEL_XP_TABLE[LEVEL_XP_TABLE.length - 1];
+  return {
+    xpForCurrentLevel: LEVEL_XP_TABLE[level] ?? 0,
+    xpForNextLevel: LEVEL_XP_TABLE[level + 1] ?? lastThreshold,
+  };
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Initialize with empty state
   const [state, dispatch] = useReducer(appReducer, createInitialState());
+
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Ref to track latest state for event listeners that can't have state in deps
+  // Lets async callbacks and event listeners read the latest state without
+  // taking it as an effect dependency.
   const stateRef = useRef(state);
-  
-  // Keep ref in sync with state (using useLayoutEffect to avoid render issues)
+
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
-  
-  // API hooks
+
   const taskApi = useApiTasks();
   const profileApi = useApiProfile();
   const historyApi = useApiHistory();
   const achievementsApi = useApiAchievements();
-  
-  // Combined loading/error states
-  const isLoading = taskApi.loading || profileApi.loading || historyApi.loading || achievementsApi.loading;
-  const apiError = taskApi.error || profileApi.error || historyApi.error || achievementsApi.error;
-  
+  const scheduleApi = useApiSchedule();
+
+  const isLoading =
+    taskApi.loading ||
+    profileApi.loading ||
+    historyApi.loading ||
+    achievementsApi.loading ||
+    scheduleApi.loading;
+
+  const apiError =
+    taskApi.error ||
+    profileApi.error ||
+    historyApi.error ||
+    achievementsApi.error ||
+    scheduleApi.error;
+
   const clearApiError = useCallback(() => {
     taskApi.clearError();
     profileApi.clearError();
     historyApi.clearError();
     achievementsApi.clearError();
-  }, [taskApi, profileApi, historyApi, achievementsApi]);
+    scheduleApi.clearError();
+  }, [
+    taskApi.clearError,
+    profileApi.clearError,
+    historyApi.clearError,
+    achievementsApi.clearError,
+    scheduleApi.clearError,
+  ]);
 
-  // Load initial data on mount
+  /*
+   * Initial API load.
+   *
+   * The HYDRATE payload is built from `stateRef.current` rather than the
+   * `state` captured at render time, so an update that landed while the
+   * request was in flight is not thrown away.
+   */
   useEffect(() => {
+    if (isInitialized) return;
+
+    let cancelled = false;
+
     const loadInitialData = async () => {
       try {
         const today = getTodayDate();
-        
-        // Load today's tasks from API
-        const tasks = await taskApi.getTodaysTasks(today);
-        dispatch({ type: "HYDRATE", state: { ...state, tasks, today } });
-        
-        // Profile will auto-fetch via useApiProfile
-        // Achievements will auto-fetch via useApiAchievements
-        
-        setIsInitialized(true);
+
+        const [tasks] = await Promise.all([
+          taskApi.getTodaysTasks(today),
+          // The schedule has no auto-fetch of its own; kick it off here and
+          // let the derive effect below fold it into state.
+          scheduleApi.fetchSchedule().catch((error) => {
+            console.error("Failed to load schedule:", error);
+            return [];
+          }),
+        ]);
+
+        if (cancelled) return;
+
+        dispatch({
+          type: "HYDRATE",
+          state: {
+            ...stateRef.current,
+            tasks,
+            today,
+          },
+        });
       } catch (error) {
         console.error("Failed to load initial data:", error);
-        // Still mark as initialized to show error UI
-        setIsInitialized(true);
+      } finally {
+        if (!cancelled) {
+          setIsInitialized(true);
+        }
       }
     };
-    
-    if (!isInitialized) {
-      loadInitialData();
-    }
-  }, [isInitialized, taskApi]);
 
-  // Update state when profile data loads (idempotent - only if values changed)
+    loadInitialData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isInitialized, taskApi.getTodaysTasks, scheduleApi.fetchSchedule]);
+
+  /*
+   * Sync profile from API.
+   *
+   * The API client converts snake_case database fields into the camelCase
+   * shape used by the frontend.
+   */
   useEffect(() => {
     if (!profileApi.profile || !isInitialized) return;
 
     const p = profileApi.profile;
+    const currentState = stateRef.current;
+    const currentStats = currentState.stats;
+
+    const totalXp = p.totalXp ?? currentStats.totalXp;
+    const level = p.level ?? currentStats.level;
+    const { xpForCurrentLevel, xpForNextLevel } = xpThresholdsForLevel(level);
+
     const newStats = {
-      totalXp: p.totalXp || 0,
-      level: p.level || 1,
-      tasksCompletedToday: p.tasksCompletedToday || 0,
-      tasksCompletedTotal: p.tasksCompletedTotal || 0,
-      currentStreak: p.currentStreak || 0,
-      longestStreak: p.longestStreak || 0,
-      xpForCurrentLevel: p.xpForCurrentLevel || 0,
-      xpForNextLevel: p.xpForNextLevel || 0,
+      ...currentStats,
+      totalXp,
+      level,
+      xpForCurrentLevel,
+      xpForNextLevel,
+      // Derived from today's task list by the reducer, not from the profile.
+      tasksCompletedToday: currentStats.tasksCompletedToday,
+      tasksCompletedTotal:
+        p.tasksCompletedTotal ?? currentStats.tasksCompletedTotal,
+      currentStreak: p.currentStreak ?? currentStats.currentStreak,
+      longestStreak: p.longestStreak ?? currentStats.longestStreak,
     };
 
-    // Only dispatch if stats actually changed
-    const currentStats = state.stats;
+    // The XP thresholds are included so a stale pair still gets corrected
+    // even when the level itself is unchanged.
     const statsChanged =
       currentStats.totalXp !== newStats.totalXp ||
       currentStats.level !== newStats.level ||
-      currentStats.tasksCompletedToday !== newStats.tasksCompletedToday ||
+      currentStats.xpForCurrentLevel !== newStats.xpForCurrentLevel ||
+      currentStats.xpForNextLevel !== newStats.xpForNextLevel ||
       currentStats.tasksCompletedTotal !== newStats.tasksCompletedTotal ||
       currentStats.currentStreak !== newStats.currentStreak ||
-      currentStats.longestStreak !== newStats.longestStreak ||
-      currentStats.xpForCurrentLevel !== newStats.xpForCurrentLevel ||
-      currentStats.xpForNextLevel !== newStats.xpForNextLevel;
+      currentStats.longestStreak !== newStats.longestStreak;
 
-    if (statsChanged) {
-      dispatch({
-        type: "HYDRATE",
-        state: {
-          ...state,
-          stats: newStats,
-        },
-      });
-    }
+    if (!statsChanged) return;
+
+    dispatch({
+      type: "HYDRATE",
+      state: {
+        ...currentState,
+        stats: newStats,
+      },
+    });
   }, [profileApi.profile, isInitialized]);
 
-  // Update state when achievements load (idempotent - only if values changed)
+  /*
+   * Sync achievements.
+   */
   useEffect(() => {
     if (!achievementsApi.achievements || !isInitialized) return;
 
     const newAchievements = achievementsApi.achievements;
-    const currentAchievements = state.achievements;
+    const currentState = stateRef.current;
+    const currentAchievements = currentState.achievements;
 
-    // Only dispatch if achievements actually changed (compare by reference and length)
     const achievementsChanged =
       currentAchievements.length !== newAchievements.length ||
-      currentAchievements.some((a, i) => a.id !== newAchievements[i]?.id);
+      currentAchievements.some(
+        (achievement, index) =>
+          achievement.id !== newAchievements[index]?.id ||
+          achievement.isUnlocked !== newAchievements[index]?.isUnlocked
+      );
 
-    if (achievementsChanged) {
-      dispatch({
-        type: "HYDRATE",
-        state: {
-          ...state,
-          achievements: newAchievements,
-        },
-      });
-    }
+    if (!achievementsChanged) return;
+
+    dispatch({
+      type: "HYDRATE",
+      state: {
+        ...currentState,
+        achievements: newAchievements,
+      },
+    });
   }, [achievementsApi.achievements, isInitialized]);
 
-  // Check for day rollover on visibility change
+  /*
+   * Fold the fetched schedule blocks into state.
+   *
+   * Blocks are stored as recurrence rules rather than per-day rows, so only
+   * the active blocks that recur on today's weekday belong in the day view.
+   * `recurrenceDays === null` means "every day".
+   */
   useEffect(() => {
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        // Use ref to get latest state without adding it to deps
-        const currentState = stateRef.current;
-        const today = getTodayDate();
-        taskApi.getTodaysTasks(today).then((tasks) => {
-          dispatch({ type: "HYDRATE", state: { ...currentState, tasks, today } });
-        }).catch(console.error);
-      }
-    }
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [taskApi]);
+    if (!scheduleApi.schedule || !isInitialized) return;
 
-  // API-driven actions with optimistic updates
+    const currentState = stateRef.current;
+    const isoWeekday = getIsoWeekday();
+
+    const blocks: ScheduleBlock[] = scheduleApi.schedule
+      .filter(
+        (block) =>
+          block.isActive !== false &&
+          (block.recurrenceDays === null ||
+            block.recurrenceDays === undefined ||
+            block.recurrenceDays.includes(isoWeekday))
+      )
+      .map(({ id, title, type, startTime, endTime, isFixed }) => ({
+        id,
+        title,
+        type,
+        startTime,
+        endTime,
+        isFixed,
+      }))
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    const teachingDays = parseWeekdays(profileApi.profile?.teachingDays);
+    const isTeachingDay = teachingDays?.includes(isoWeekday) ?? false;
+
+    const currentSchedule = currentState.schedule;
+    const scheduleChanged =
+      currentSchedule.date !== currentState.today ||
+      currentSchedule.isTeachingDay !== isTeachingDay ||
+      currentSchedule.blocks.length !== blocks.length ||
+      currentSchedule.blocks.some(
+        (block, index) =>
+          block.id !== blocks[index]?.id ||
+          block.startTime !== blocks[index]?.startTime ||
+          block.endTime !== blocks[index]?.endTime ||
+          block.title !== blocks[index]?.title
+      );
+
+    if (!scheduleChanged) return;
+
+    dispatch({
+      type: "HYDRATE",
+      state: {
+        ...currentState,
+        schedule: {
+          date: currentState.today,
+          isTeachingDay,
+          blocks,
+        },
+      },
+    });
+  }, [scheduleApi.schedule, profileApi.profile, isInitialized]);
+
+  /*
+   * Check for a day rollover and refresh today's tasks whenever the tab
+   * becomes visible.
+   */
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+
+      const today = getTodayDate();
+
+      // The tab may have been left open across midnight. Rolling over first
+      // archives the previous day and clears its animations before the new
+      // day's tasks arrive.
+      if (today !== stateRef.current.today) {
+        dispatch({ type: "ROLLOVER_DAY" });
+      }
+
+      taskApi
+        .getTodaysTasks(today)
+        .then((tasks) => {
+          dispatch({
+            type: "HYDRATE",
+            state: {
+              ...stateRef.current,
+              tasks,
+              today,
+            },
+          });
+        })
+        .catch((error) => {
+          console.error("Failed to refresh today's tasks:", error);
+        });
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [taskApi.getTodaysTasks]);
+
+  /*
+   * Complete task.
+   *
+   * The reducer performs the optimistic UI update; the server remains the
+   * authoritative source of XP, so the profile is refetched afterwards.
+   */
   const completeTask = useCallback(
     async (taskId: string) => {
+      const currentTask = stateRef.current.tasks.find(
+        (task) => task.id === taskId
+      );
+
+      if (!currentTask || currentTask.completed) return;
+
       const idempotencyKey = `complete-${taskId}-${Date.now()}`;
-      
-      // Optimistic update
+
       dispatch({ type: "COMPLETE_TASK", taskId });
-      
+
       try {
-        // Call API
         const result = await taskApi.completeTask(taskId, idempotencyKey);
-        
-        // Sync profile data
-        if (result.new_total_xp !== undefined) {
+
+        if (result && result.new_total_xp !== undefined) {
           await profileApi.fetchProfile();
         }
       } catch (error) {
-        // Rollback on error
         console.error("Failed to complete task:", error);
+
+        // Roll back the optimistic completion.
         dispatch({ type: "UNCOMPLETE_TASK", taskId });
+
         throw error;
       }
     },
-    [taskApi, profileApi]
+    [taskApi.completeTask, profileApi.fetchProfile]
   );
 
+  /*
+   * Undo task completion.
+   */
   const uncompleteTask = useCallback(
     async (taskId: string) => {
-      // Optimistic update
+      const currentTask = stateRef.current.tasks.find(
+        (task) => task.id === taskId
+      );
+
+      if (!currentTask || !currentTask.completed) return;
+
       dispatch({ type: "UNCOMPLETE_TASK", taskId });
-      
+
       try {
-        // Call API
         const result = await taskApi.undoCompleteTask(taskId);
-        
-        // Sync profile data
-        if (result.new_total_xp !== undefined) {
+
+        if (result && result.new_total_xp !== undefined) {
           await profileApi.fetchProfile();
         }
       } catch (error) {
-        // Rollback on error
         console.error("Failed to undo task:", error);
+
         dispatch({ type: "COMPLETE_TASK", taskId });
+
         throw error;
       }
     },
-    [taskApi, profileApi]
+    [taskApi.undoCompleteTask, profileApi.fetchProfile]
   );
 
+  /*
+   * Create task.
+   */
   const addTask = useCallback(
     async (task: NewTaskInput) => {
       const xpReward = (() => {
         switch (task.difficulty) {
-          case "easy": return 10;
-          case "medium": return 25;
-          case "hard": return 50;
-          case "epic": return 100;
-          default: return 25;
+          case "easy":
+            return 10;
+          case "medium":
+            return 25;
+          case "hard":
+            return 50;
+          case "epic":
+            return 100;
+          default:
+            return 25;
         }
       })();
 
-      // Optimistic update with temp ID
+      const today = stateRef.current.today;
       const tempId = `temp-${Date.now()}`;
+
       const tempTask: Task = {
         ...task,
         id: tempId,
         xpReward,
         completed: false,
-        date: state.today,
+        date: today,
         isRecurring: task.isRecurring,
       };
-      dispatch({
-        type: "ADD_TASK",
-        task: tempTask,
-      });
+
+      dispatch({ type: "ADD_TASK", task: tempTask });
 
       try {
-        // Call API
         const created = await taskApi.createTask({
           ...task,
-          date: state.today,
+          date: today,
           xpReward,
         });
-        
-        // Replace optimistic task (temp ID) with real task from API (UUID)
+
         dispatch({
           type: "REPLACE_TASK",
           oldId: tempId,
           newTask: created,
         });
       } catch (error) {
-        // Rollback on error - reload from server
         console.error("Failed to create task:", error);
-        const tasks = await taskApi.getTodaysTasks(state.today);
-        dispatch({ type: "HYDRATE", state: { ...state, tasks } });
+
+        // Drop the optimistic task. Reloading from the server would be more
+        // thorough, but it can fail too and would mask the original error.
+        dispatch({ type: "DELETE_TASK", taskId: tempId });
+
         throw error;
       }
     },
-    [taskApi, state]
+    [taskApi.createTask]
   );
 
+  /*
+   * Edit task.
+   */
   const editTask = useCallback(
     async (taskId: string, updates: Partial<AppState["tasks"][0]>) => {
-      // Optimistic update
+      const originalTasks = stateRef.current.tasks;
+
       dispatch({ type: "EDIT_TASK", taskId, updates });
-      
+
       try {
-        // Call API
         await taskApi.updateTask(taskId, updates);
       } catch (error) {
-        // Rollback on error - reload from server
         console.error("Failed to edit task:", error);
-        const tasks = await taskApi.getTodaysTasks(state.today);
-        dispatch({ type: "HYDRATE", state: { ...state, tasks } });
+
+        // Restore the pre-edit list, preserving order.
+        dispatch({
+          type: "HYDRATE",
+          state: {
+            ...stateRef.current,
+            tasks: originalTasks,
+          },
+        });
+
         throw error;
       }
     },
-    [taskApi, state]
+    [taskApi.updateTask]
   );
 
+  /*
+   * Delete task.
+   */
   const deleteTask = useCallback(
     async (taskId: string) => {
-      // Store original for rollback
-      const originalTask = state.tasks.find(t => t.id === taskId);
-      
-      // Optimistic update
+      const originalTasks = stateRef.current.tasks;
+
       dispatch({ type: "DELETE_TASK", taskId });
-      
+
       try {
-        // Call API
         await taskApi.deleteTask(taskId);
       } catch (error) {
-        // Rollback on error
         console.error("Failed to delete task:", error);
-        if (originalTask) {
-          dispatch({ type: "ADD_TASK", task: originalTask });
-        }
+
+        // Restoring the whole list keeps the task at its original position
+        // and avoids ADD_TASK re-registering a recurring template twice.
+        dispatch({
+          type: "HYDRATE",
+          state: {
+            ...stateRef.current,
+            tasks: originalTasks,
+          },
+        });
+
         throw error;
       }
     },
-    [taskApi, state.tasks]
+    [taskApi.deleteTask]
   );
 
+  /*
+   * Carry task forward.
+   */
   const carryForwardTask = useCallback(
     async (taskId: string) => {
       try {
-        // Call API to carry forward task
-        const carriedTask = await taskApi.carryForwardTask(taskId, state.today);
-        
-        // Add the carried task to current day's tasks
+        const carriedTask = await taskApi.carryForwardTask(
+          taskId,
+          stateRef.current.today
+        );
+
         dispatch({ type: "ADD_TASK", task: carriedTask });
       } catch (error) {
         console.error("Failed to carry forward task:", error);
+
         throw error;
       }
     },
-    [taskApi, state.today]
+    [taskApi.carryForwardTask]
   );
 
-  const dismissXpAnimation = useCallback(
-    (id: string) => dispatch({ type: "DISMISS_XP_ANIMATION", animationId: id }),
-    []
-  );
+  const dismissXpAnimation = useCallback((id: string) => {
+    dispatch({ type: "DISMISS_XP_ANIMATION", animationId: id });
+  }, []);
 
-  const dismissLevelUp = useCallback(
-    () => dispatch({ type: "DISMISS_LEVEL_UP" }),
-    []
-  );
+  const dismissLevelUp = useCallback(() => {
+    dispatch({ type: "DISMISS_LEVEL_UP" });
+  }, []);
 
-  // Derived values
   const completionPercentage = getCompletionPercentage(state.tasks);
   const levelProgress = getLevelProgress(state.stats);
 
   const value: AppContextValue = {
     state,
     dispatch,
+
     completeTask,
     uncompleteTask,
     addTask,
     editTask,
     deleteTask,
     carryForwardTask,
+
     dismissXpAnimation,
     dismissLevelUp,
+
     isLoading,
     apiError,
     clearApiError,
+
     completionPercentage,
     levelProgress,
   };
@@ -377,8 +598,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 export function useApp(): AppContextValue {
   const context = useContext(AppContext);
+
   if (!context) {
     throw new Error("useApp must be used within AppProvider");
   }
+
   return context;
 }

@@ -244,7 +244,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
 
     case "HYDRATE": {
-      return action.state;
+      // Recalculate so derived fields (today's completed count, today's
+      // history entry) match the tasks that were just hydrated.
+      return recalcStats(action.state);
     }
 
     default:

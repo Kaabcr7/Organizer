@@ -5,8 +5,13 @@ import { motion } from "motion/react";
 import { Progress } from "@/components/ui/progress";
 import { getGreeting, formatToday } from "@/lib/domain/date";
 import { getLevelProgress, formatXp } from "@/lib/domain/xp";
+import { LEVEL_XP_TABLE } from "@/lib/constants";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import type { UserStats } from "@/types/gamification";
+
+// Index 0 of the table is an unused placeholder, so the last index is the
+// highest reachable level.
+const MAX_LEVEL = LEVEL_XP_TABLE.length - 1;
 
 interface DailyHeaderProps {
   stats: UserStats;
@@ -18,6 +23,7 @@ export function DailyHeader({ stats, completionPercent }: DailyHeaderProps) {
   const today = formatToday();
   const levelProgress = getLevelProgress(stats);
   const reducedMotion = useReducedMotion();
+  const isMaxLevel = stats.level >= MAX_LEVEL;
 
   return (
     <div className="space-y-6">
@@ -175,11 +181,21 @@ export function DailyHeader({ stats, completionPercent }: DailyHeaderProps) {
           <div>
             <p className="text-sm font-semibold">Level {stats.level}</p>
             <p className="text-xs text-muted-foreground">
-              {formatXp(stats.xpForNextLevel - stats.totalXp)} XP to level up
+              {isMaxLevel
+                ? "Max level reached"
+                : stats.totalXp >= stats.xpForNextLevel
+                  ? "Ready to level up"
+                  : `${formatXp(
+                      stats.xpForNextLevel - stats.totalXp
+                    )} XP to level up`}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-muted-foreground">Level {stats.level + 1}</p>
+            {!isMaxLevel && (
+              <p className="text-xs text-muted-foreground">
+                Level {stats.level + 1}
+              </p>
+            )}
           </div>
         </div>
         <motion.div

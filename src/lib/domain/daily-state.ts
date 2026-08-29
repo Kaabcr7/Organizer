@@ -3,10 +3,34 @@ import type { DailyState } from "@/types/task";
 import { getCompletionPercentage, getEarnedXp } from "./tasks";
 
 /**
- * Get today's ISO date string (YYYY-MM-DD).
+ * Get today's ISO date string (YYYY-MM-DD) in the user's local timezone.
+ *
+ * Deliberately not `toISOString()`, which formats in UTC: for any timezone
+ * ahead of UTC (the default here is Asia/Kolkata, +05:30) that reports
+ * yesterday's date during the early hours of the morning, so the app would
+ * load the wrong day's tasks until 05:30 local time.
  */
 export function getTodayDate(): string {
-  return new Date().toISOString().split("T")[0];
+  return toLocalDateString(new Date());
+}
+
+/**
+ * Format a Date as YYYY-MM-DD using its local calendar fields.
+ */
+export function toLocalDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * ISO weekday number for a date (1 = Monday … 7 = Sunday), matching the
+ * encoding used by the `recurrence_days` and `teaching_days` columns.
+ */
+export function getIsoWeekday(date: Date = new Date()): number {
+  const day = date.getDay(); // 0 = Sunday
+  return day === 0 ? 7 : day;
 }
 
 /**

@@ -7,11 +7,25 @@ export interface UserStats {
   longestStreak: number;
   tasksCompletedToday: number;
   tasksCompletedTotal: number;
-  // Profile fields from API
+
+  // Profile fields, normalised to camelCase by lib/api/client.ts.
+  // Times are "HH:MM"; teachingDays is a JSON array of ISO weekdays ("[1,3,5]").
   id?: string;
+  displayName?: string;
+  avatarUrl?: string | null;
+  timezone?: string;
+  teachingDays?: string | null;
+  collegeStart?: string;
+  collegeEnd?: string;
+  teachingStart?: string;
+  teachingEnd?: string;
+  createdAt?: string;
+  updatedAt?: string;
+
+  // Raw snake_case keys as they arrive on the wire. Kept because the API
+  // client spreads the original row; prefer the camelCase fields above.
   display_name?: string;
   avatar_url?: string | null;
-  timezone?: string;
   teaching_days?: string;
   college_start?: string;
   college_end?: string;

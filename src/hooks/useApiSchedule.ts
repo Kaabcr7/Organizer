@@ -3,23 +3,26 @@
  */
 
 import { useState, useCallback } from "react";
-import { scheduleApi, ApiError } from "@/lib/api/client";
+import { scheduleApi, ApiError, type ApiScheduleBlock } from "@/lib/api/client";
 
 export interface UseApiScheduleState {
-  schedule: any[] | null;
+  schedule: ApiScheduleBlock[] | null;
   loading: boolean;
   error: ApiError | null;
 }
 
 export interface UseApiScheduleActions {
-  fetchSchedule: () => Promise<any[]>;
-  updateScheduleBlock: (id: string, updates: Record<string, any>) => Promise<any>;
+  fetchSchedule: () => Promise<ApiScheduleBlock[]>;
+  updateScheduleBlock: (
+    id: string,
+    updates: Record<string, any>
+  ) => Promise<ApiScheduleBlock>;
   deleteScheduleBlock: (id: string) => Promise<void>;
   clearError: () => void;
 }
 
 export function useApiSchedule(): UseApiScheduleState & UseApiScheduleActions {
-  const [schedule, setSchedule] = useState<any[] | null>(null);
+  const [schedule, setSchedule] = useState<ApiScheduleBlock[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
 

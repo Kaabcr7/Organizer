@@ -1,3 +1,5 @@
+import { getTodayDate } from "./daily-state";
+
 /**
  * Get a greeting based on the current time.
  */
@@ -22,8 +24,10 @@ export function formatToday(): string {
 }
 
 /**
- * Get today's date as ISO string (YYYY-MM-DD).
+ * Get today's date as an ISO string (YYYY-MM-DD) in the user's local timezone.
+ *
+ * @deprecated Use `getTodayDate` from `@/lib/domain/daily-state` directly.
  */
 export function getToday(): string {
-  return new Date().toISOString().split("T")[0];
+  return getTodayDate();
 }
